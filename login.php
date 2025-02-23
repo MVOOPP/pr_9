@@ -20,7 +20,7 @@
 					header("Location: user.php");
 					exit;
 				} else if ($userRoll == 1) {
-					header("Location: admin.php");
+					header("Location: admin.php"); 
 					exit;
 				}
 			}
