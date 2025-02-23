@@ -23,7 +23,7 @@
 		while($max--) {
 			$password.=$chars[rand(0,$size)];
 		}
-		 
+		
 		return $password;
 	}
 	

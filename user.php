@@ -1,19 +1,47 @@
 <?php
+	ini_set('session.cookie_domain', '.permaviat.ru');
 	session_start();
+
 	include("./settings/connect_datebase.php");
-	
-	if (isset($_SESSION['user'])) {
-		if($_SESSION['user'] == -1) {
-			header("Location: login.php");
-		} else {
-			// проверяем пользователя, если админ выкидываем на админа
-			$user_to_query = $mysqli->query("SELECT `roll` FROM `users` WHERE `id` = ".$_SESSION['user']);
-			$user_to_read = $user_to_query->fetch_row();
-			
-			if($user_to_read[0] == 1) header("Location: login.php");
-		}
- 	} else header("Location: login.php");
-	
+
+	// 1. Проверяем, есть ли JWT-токен в сессии
+	if (!isset($_SESSION['token'])) {
+		header("Location: login.php");
+		exit;
+	}
+
+	// 2. Разбиваем токен на части
+	$tokenParts = explode('.', $_SESSION['token']);
+	if (count($tokenParts) !== 3) {
+		header("Location: login.php");
+		exit;
+	}
+
+	// 3. Декодируем payload
+	$payloadDecoded = base64_decode($tokenParts[1]);
+	$payload = json_decode($payloadDecoded);
+	if (!$payload) {
+		header("Location: login.php");
+		exit;
+	}
+
+	// 4. Проверяем роль (roll) — должна быть 0, иначе это не «пользователь»
+	if (!isset($payload->roll) || $payload->roll != 0) {
+		// Если роль не 0, отправляем на login
+		header("Location: login.php");
+		exit;
+	}
+
+	// 5. Извлекаем ID пользователя
+	$userId = $payload->UserId;
+
+	$userQuery = $mysqli->query("SELECT * FROM `users` WHERE `id` = $userId");
+	$userData  = $userQuery->fetch_assoc();
+	if (!$userData) {
+		// Если пользователь с таким ID не найден, выходим
+		header("Location: login.php");
+		exit;
+}
 ?>
 <!DOCTYPE HTML>
 <html>
@@ -42,17 +70,9 @@
 			<div class="content">
 				<input type="button" class="button" value="Выйти" onclick="logout()"/>
 				<div class="name" style="padding-bottom: 0px;">Личный кабинет</div>
-				<div class="description">Добро пожаловать: 
-					<?php
-						$user_to_query = $mysqli->query("SELECT * FROM `users` WHERE `id` = ".$_SESSION['user']);
-						$user_to_read = $user_to_query->fetch_row();
-						
-						echo $user_to_read[1];
-					?>
-					<br>Ваш идентификатор:
-					<?php
-						echo $user_to_read[0];
-					?>
+				<div class="description">
+					Добро пожаловать: <?php echo htmlspecialchars($userData['login']); ?><br>
+					Ваш идентификатор: <?php echo htmlspecialchars($userData['id']); ?>
 				</div>
 			
 				<div class="footer">

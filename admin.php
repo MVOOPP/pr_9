@@ -1,17 +1,33 @@
 <?php
+	ini_set('session.cookie_domain', '.permaviat.ru');
 	session_start();
-	include("./settings/connect_datebase.php");
 	
-	if (isset($_SESSION['user'])) {
-		if($_SESSION['user'] != -1) {
-			$user_query = $mysqli->query("SELECT * FROM `users` WHERE `id` = ".$_SESSION['user']); // проверяем
-			while($user_read = $user_query->fetch_row()) {
-				if($user_read[3] == 0) header("Location: index.php");
-			}
-		} else header("Location: login.php");
- 	} else {
+	// Проверяем наличие JWT-токена в сессии
+	if (!isset($_SESSION['token'])) {
 		header("Location: login.php");
-		echo "Пользователя не существует";
+		exit;
+	}
+	
+	$token = $_SESSION['token'];
+	$tokenParts = explode('.', $token);
+	if (count($tokenParts) !== 3) {
+		header("Location: login.php");
+		exit;
+	}
+	
+	// Декодируем полезную нагрузку (payload) из токена
+	$payloadDecoded = base64_decode($tokenParts[1]);
+	$payload = json_decode($payloadDecoded);
+	if (!$payload) {
+		header("Location: login.php");
+		exit;
+	}
+	
+	// Проверяем, что роль (roll) пользователя равна 1 (администратор)
+	// Если роль не равна 1 или поле отсутствует, перенаправляем на login.php
+	if (!isset($payload->roll) || $payload->roll != 1) {
+		header("Location: login.php");
+		exit;
 	}
 ?>
 <!DOCTYPE HTML>
